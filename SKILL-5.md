@@ -166,7 +166,7 @@ CHAPTER I.
 ```javascript
 // ✅ ĐÚNG — dùng cp() cho đoạn không có số, rồi com() cho các đoạn có số
 C.push(ch('CHAPTER I.'));
-C.push(cp('The period embraced in these records is from B.C. 1015—562...'));
+C.push(cp('The period embraced in these records is from B.C. 1015—562, or rather more than four hundred and fifty years...'));
 C.push(com('1—4.', 'These two Books of Kings, which, in the Hebrew manuscripts...'));
 C.push(com('5.', 'Adonijah, who was the fourth son of David...'));
 ```
@@ -183,6 +183,12 @@ C.push(com('5.', 'Adonijah, who was the fourth son of David...'));
 
 > **Commentary của CHAPTER N bắt đầu từ text `CHAPTER N.` ở phần bottom và kết thúc ngay trước text `CHAPTER N+1.` ở phần bottom. Nếu chưa thấy `CHAPTER N+1.` thì chưa được dừng, dù đã sang trang tiếp theo.**
 
+Tất cả text trong phần bottom của các trang, từ `CHAPTER N.` cho đến (không gồm) `CHAPTER N+1.`, đều thuộc commentary của Chapter N — lấy **nguyên văn đầy đủ**, không bỏ bất kỳ footnote nào.
+
+#### Tại sao lỗi này xảy ra
+
+Bố cục trang Cassell's 1860: phần bottom (commentary) của một trang không nhất thiết kết thúc cùng chương với Bible text phần trên. Commentary CHAPTER N thường **tràn sang 1–3 trang tiếp theo**, xen kẽ dưới Bible text của CHAPTER N+1, N+2...
+
 ```
 Trang 1:                      Trang 2:                    Trang 3:
 [Bible text Ch. I v.1–18]     [Bible text Ch. I v.19–25] [Bible text Ch. II v.1–14]
@@ -192,27 +198,35 @@ CHAPTER I.          ← bắt đầu  [không có heading]          [không có 
 2. Ekron was...                 5—8. The messengers...      13—16. The third captain...
                                                             17. As Ahaziah...   ← kết thúc Ch.I
                                                             CHAPTER II.         ← bắt đầu Ch.II
+                                                            1. Gilgal is...
 ```
 
 #### Cách làm đúng
 
-1. Khi gặp `CHAPTER N.` trong phần bottom: bắt đầu thu thập, đọc hết trang đó.
-2. Sang trang tiếp: nếu **không có** `CHAPTER N+1.` → vẫn thuộc Chapter N, tiếp tục thu thập.
-3. Lặp lại cho đến khi thấy `CHAPTER N+1.`.
-4. Ghi tất cả `com()` theo đúng thứ tự, nguyên văn đầy đủ.
+**Bước 1 — Khi gặp `CHAPTER N.` trong phần bottom:** bắt đầu thu thập commentary, tiếp tục đọc hết trang đó.
+
+**Bước 2 — Sang trang tiếp theo:** đọc phần bottom. Nếu **không có** heading `CHAPTER N+1.` → toàn bộ nội dung phần bottom vẫn thuộc Chapter N, tiếp tục thu thập.
+
+**Bước 3 — Lặp lại Bước 2** cho mỗi trang tiếp theo cho đến khi thấy `CHAPTER N+1.` trong phần bottom.
+
+**Bước 4 — Ghi vào code** tất cả các `com()` theo đúng thứ tự, nguyên văn đầy đủ.
 
 ```javascript
-// ✅ ĐÚNG — gom đủ từ trang 1 đến trang 3
+// ✅ ĐÚNG — gom đủ tất cả footnotes từ mọi trang cho đến khi gặp CHAPTER II.
 C.push(ch('CHAPTER I.'));
-C.push(com('1.', 'The previous Book concluded...'));       // trang 1
-C.push(com('2.', 'Ekron was the most northern...'));       // trang 1
-C.push(com('3, 4.', 'Ahaziah sends to consult...'));       // trang 2
-C.push(com('5—8.', 'The messengers did not recognise...')); // trang 2
-C.push(com('9—12.', 'After Elijah had revealed...'));      // trang 3
-C.push(com('13—16.', 'The third captain takes...'));       // trang 3
-C.push(com('17.', 'As Ahaziah had no son...'));            // trang 3
+C.push(com('1.', 'The previous Book concluded with the intimation that Ahaziah...'));  // trang 1
+C.push(com('2.', 'Ekron was the most northern of the five cities...'));                // trang 1
+C.push(com('3, 4.', 'Ahaziah sends to consult this deity as to...'));                  // trang 2
+C.push(com('5—8.', 'The messengers did not recognise Elijah; but when...'));           // trang 2
+C.push(com('9—12.', 'After Elijah had revealed to the messengers...'));                // trang 3
+C.push(com('13—16.', 'The third captain takes quite a different attitude...'));        // trang 3
+C.push(com('17.', 'As Ahaziah had no son, he was succeeded by Jehoram...'));           // trang 3
 
-// ❌ SAI — dừng sớm sau trang 1, bỏ mất footnotes 3,4 đến 17
+// ❌ SAI — dừng sớm sau trang 1, bỏ mất toàn bộ footnotes 3,4 đến 17
+C.push(ch('CHAPTER I.'));
+C.push(com('1.', 'The previous Book...'));
+C.push(com('2.', 'Ekron was...'));
+// ← THIẾU: 3,4 / 5—8 / 9—12 / 13—16 / 17
 ```
 
 #### Checklist trước khi code một chương
@@ -433,6 +447,8 @@ CHAPTER II
 |------|-------------|--------|-----------|--------|
 | I Kings (Vol.2) | OCR txt | 22 | 562 | `Cassells_1860_I_KINGS_full.docx` |
 | II Kings (Vol.2) | OCR txt | 25 | 499 | `Cassells_1860_II_KINGS_full.docx` |
+| I Kings (Vol.2) | Visual ảnh | 22 | 1,046 | `Cassells_1860_I_KINGS_full.docx` |
+| II Kings (Vol.2) | Visual ảnh | 25 | 946 | `Cassells_1860_II_KINGS_full.docx` |
 
 ---
 

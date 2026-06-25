@@ -19,53 +19,25 @@ file `.docx` với định dạng đẹp, nhất quán — font Georgia, có run
 
 ---
 
-## LUẬT SỐ 1 — NGUYÊN VĂN TUYỆT ĐỐI
-
-> Mọi nội dung trong DOCX — summary, verse, commentary — phải là chuỗi ký tự được **copy
-> trực tiếp từ nguồn gốc** (ảnh hoặc OCR text). Không có ngoại lệ.
-
-**Điều này có nghĩa là:**
-- Trước khi viết bất kỳ dòng `chHead()`, `v()`, `com()`, `cp()` nào, AI phải đã **đọc
-  nguồn tương ứng** và có chuỗi text gốc trong tay.
-- Không được dùng trí nhớ, không được suy luận, không được tóm tắt, không được
-  paraphrase, không được "điền vào" những gì có vẻ hợp lý.
-- Nếu nội dung bị mờ hay thiếu một đoạn: để trống hoặc ghi `[illegible]`, không được tự bịa.
-
-### Ba loại nội dung — ba nguồn tương ứng
-
-| Nội dung | Nguồn | Hàm JS |
-|----------|-------|--------|
-| **Chapter summary** | Dòng bắt đầu bằng số `1 ...` ngay sau `CHAPTER X.` lần đầu, trước verse 1 | `chHead(num, summary)` |
-| **Verse text** | Cột trái/phải của trang, các dòng bắt đầu bằng số verse | `v(num, text)` / `vmi(num, ...)` |
-| **Commentary** | Toàn bộ text sau `CHAPTER X.` lần thứ hai trong trang | `com(ref, text)` / `cp(text)` |
-
----
-
-## Bước 1 — Kiểm tra và chuẩn bị file
+## Bước 1 — Kiểm tra file PDF
 
 ```bash
 # Kiểm tra loại file
 file /mnt/project/<tên-file>.pdf
 ls -lh /mnt/project/<tên-file>.pdf
 
-# --- Phương pháp A: Rasterize thành ảnh (cho PDF scan) ---
+# Rasterize toàn bộ trang thành ảnh JPEG 150dpi
 pdftoppm -jpeg -r 150 /mnt/project/<tên-file>.pdf /tmp/pages_p
-ls /tmp/pages_p*.jpg | wc -l   # đếm số trang
 
-# --- Phương pháp B: Giải nén nếu là ZIP chứa txt (Cassell's OCR) ---
-unzip /mnt/project/<tên-file>.pdf -d /tmp/book/
-ls /tmp/book/*.txt | wc -l   # đếm số trang txt
+# Đếm số trang
+ls /tmp/pages_p*.jpg | wc -l
 ```
 
 ---
 
-## Bước 2 — Đọc nội dung
+## Bước 2 — Đọc nội dung từng trang
 
-Dùng **một trong hai phương pháp** tùy theo file:
-
-### Phương pháp A — Đọc từ ảnh (view tool)
-
-**Xem từng trang ảnh** để đọc text chính xác theo layout:
+**Xem từng trang ảnh** bằng `view` tool để đọc text chính xác theo layout:
 
 ```
 view /tmp/pages_p-01.jpg
@@ -73,105 +45,83 @@ view /tmp/pages_p-02.jpg
 ... (tiếp tục cho đến hết)
 ```
 
-### Phương pháp B — Đọc từ OCR text (bash)
-
-#### 2B-1. Đọc và trích xuất summary
-
-Summary nằm giữa `CHAPTER X.` lần đầu và dòng đầu tiên của verse.
-
-```bash
-# Đọc toàn bộ trang đầu của chương
-cat /tmp/book/PAGE.txt
-
-# Summary nhận dạng: dòng bắt đầu bằng chữ số "1 ..." (không phải footnote)
-# Footnote: "1 Heb. xxx", "2 Or, xxx" — BỎ
-# Summary: "1 Tên người động từ..." (câu hoàn chỉnh có nghĩa) — GIỮ
-```
-
-#### 2B-2. Đọc và trích xuất verse text
-
-```bash
-cat /tmp/book/PAGE.txt
-cat /tmp/book/PAGE+1.txt
-# ...
-```
-
-**Nhận dạng verse:** dòng bắt đầu bằng số (`2 Wherefore his servants...`).
-**Lọc bỏ cross-refs cột giữa:** `a Gen. xv. 4;` / `1 Heb. xxx` / `2 Sam. iii.` — **BỎ**.
-**Verse bị ngắt dòng** — nối lại thành câu hoàn chỉnh.
-
-#### 2B-3. Đọc và trích xuất commentary
-
-```bash
-# Trích commentary: bắt đầu từ "CHAPTER X." lần thứ hai
-awk '/^CHAPTER [IVX]+\./{n++; if(n==2){found=1; next}} found{print}' /tmp/book/PAGE.txt \
-  | grep -v "^[0-9]\{2,3\}$"   # bỏ số trang
-```
-
-Commentary thường **tràn sang trang tiếp theo** — phải đọc thêm cho đến khi gặp `CHAPTER N+1.`.
-
----
-
-### Quy tắc XANH/ĐỎ (áp dụng cho cả 2 phương pháp)
+### Quy tắc XANH/ĐỎ (cho sách Kinh Thánh dạng 3 cột Cassell's 1860)
 
 | Vùng | Màu | Hành động |
 |------|-----|-----------|
-| Running header (đầu trang) | 🟢 GIỮ | `runHdr(left, center, right)` |
-| Chapter heading + summary italic | 🟢 GIỮ | `chHead(num, summary)` |
-| Cột TRÁI — Bible text (verses) | 🟢 GIỮ NGUYÊN VĂN | `v(num, text)` |
-| Cột PHẢI — Bible text tiếp | 🟢 GIỮ NGUYÊN VĂN | `v(num, text)` |
-| Commentary cuối trang (full width) | 🟢 GIỮ NGUYÊN VĂN | `com(ref, text)` hoặc `cp(text)` |
+| Running header (đầu trang) | 🟢 GIỮ | Dùng làm `runHdr(left, center, right)` |
+| Chapter heading + summary italic | 🟢 GIỮ | Dùng làm `chHead(num, summary)` |
+| Cột TRÁI — Bible text (verses) | 🟢 GIỮ | `v(num, text)` |
+| Cột PHẢI — Bible text tiếp | 🟢 GIỮ | `v(num, text)` |
+| Commentary cuối trang (full width) | 🟢 GIỮ | `com(ref, text)` hoặc `cp(text)` |
 | Image captions | 🟢 GIỮ | `cap(text)` |
-| Cột GIỮA — marginal cross-refs | 🔴 BỎ | `a Gen. xv. 4;`, `1 Heb. something` |
+| Cột GIỮA — marginal cross-refs | 🔴 BỎ | Ví dụ: "a Gen. xv. 4;", "1 Heb. something" |
 | Số trang gốc (489, 490...) | 🔴 BỎ | Bỏ hoàn toàn |
-| `BEFORE CHRIST XXXX` riêng lẻ | 🔴 BỎ | Bỏ (chỉ giữ ở title page) |
-| Dòng `i`, `!`, `e` đơn lẻ | 🔴 BỎ | Artifact của OCR |
-| Running header `Rebellion of Moab. II. KINGS, I.` | 🔴 BỎ | Trong commentary |
+| "BEFORE CHRIST XXXX" riêng lẻ | 🔴 BỎ | Bỏ (chỉ giữ ở title page) |
 
 ---
 
-## ⚠️ LỖI HAY GẶP — ĐỌC KỸ TRƯỚC KHI CODE
+## ⚠️ LỖI HAY GẶP KHI ĐỌC NỘI DUNG — ĐỌC KỸ TRƯỚC KHI CODE
 
 ### Lỗi 1 — Thiếu số "1" đầu dòng trong chapter summary
 
-Phần summary **luôn bắt đầu bằng số "1"**, tiếp theo là các số verse khác.
+Phần summary in nghiêng đầu mỗi chương **luôn bắt đầu bằng số "1"** chỉ verse đầu tiên,
+tiếp theo là các số verse khác (5, 8, 11...). Ví dụ nguyên văn:
 
 ```
 1 Abishag cherisheth David in his extreme age. 5 Adonijah, David's darling,
 usurpeth the kingdom. 11 By the counsel of Nathan, 15 Bath-sheba moveth the king...
 ```
 
+**Lỗi hay mắc:** Bỏ số "1" ở đầu, viết thẳng vào `chHead()` như sau:
 ```javascript
 // ❌ SAI — thiếu "1" đầu dòng
 chHead('I', 'Abishag cherisheth David in his extreme age. 5 Adonijah...')
+```
 
+**Đúng phải là:**
+```javascript
 // ✅ ĐÚNG — giữ nguyên số "1" đầu dòng
 chHead('I', '1 Abishag cherisheth David in his extreme age. 5 Adonijah...')
 ```
 
-**Quy tắc:** Luôn đọc thật kỹ dòng đầu tiên của summary — nếu thấy số (thường là "1"), phải giữ nguyên.
+**Quy tắc:** Luôn đọc thật kỹ dòng đầu tiên của summary — nếu thấy số (thường là "1"),
+phải giữ nguyên trong chuỗi truyền vào `chHead()`.
 
 ---
 
 ### Lỗi 2 — Thiếu đoạn commentary không có số tham chiếu
 
-Commentary đôi khi có **một đoạn văn mở đầu không có số tham chiếu** trước các footnote đánh số.
+Phần commentary cuối trang đôi khi có **một đoạn văn mở đầu không có số tham chiếu**
+(không phải "1—4." hay "5." mà là plain text chạy thẳng), rồi mới đến các footnote
+đánh số. Ví dụ nguyên văn I Kings Chapter I:
 
 ```
-The period embraced in these records is from B.C. 1015—562...   ← đoạn plain (THIẾU NẾU BỎ)
 CHAPTER I.
-1—4.  These two Books of Kings...                                ← mới có số
+1—4.  These two Books of Kings, which, in the Hebrew manuscripts...
 ```
 
+Nhưng phía trên dòng "1—4." đó còn có đoạn không đánh số:
+
+```
+The period embraced in these records is from B.C. 1015—562, or rather
+more than four hundred and fifty years. The authorship has been ascribed
+by some to Jeremiah, whilst others attribute the work of compilation to Ezra...
+```
+
+**Lỗi hay mắc:** Chỉ chép phần "1—4." trở đi, bỏ mất đoạn mở đầu không có số.
+
+**Đúng phải là:** Dùng `cp()` cho đoạn không có số, rồi `com()` cho các đoạn có số:
 ```javascript
-// ✅ ĐÚNG — dùng cp() cho đoạn không có số, rồi com() cho các đoạn có số
+// ✅ ĐÚNG
 C.push(ch('CHAPTER I.'));
-C.push(cp('The period embraced in these records is from B.C. 1015—562...'));
+C.push(cp('The period embraced in these records is from B.C. 1015—562, or rather more than four hundred and fifty years...'));
 C.push(com('1—4.', 'These two Books of Kings, which, in the Hebrew manuscripts...'));
 C.push(com('5.', 'Adonijah, who was the fourth son of David...'));
 ```
 
-**Quy tắc:** Khi đọc commentary, đọc **từ đầu tiêu đề "CHAPTER X."** — nếu có text nào trước footnote đánh số đầu tiên, dùng `cp()`.
+**Quy tắc:** Khi đọc phần commentary, **đọc từ đầu tiêu đề "CHAPTER X."** rồi kéo xuống —
+nếu có text nào xuất hiện **trước** footnote đánh số đầu tiên, phải dùng `cp()` để giữ lại.
 
 ---
 
@@ -183,6 +133,12 @@ C.push(com('5.', 'Adonijah, who was the fourth son of David...'));
 
 > **Commentary của CHAPTER N bắt đầu từ text `CHAPTER N.` ở phần bottom và kết thúc ngay trước text `CHAPTER N+1.` ở phần bottom. Nếu chưa thấy `CHAPTER N+1.` thì chưa được dừng, dù đã sang trang tiếp theo.**
 
+Tất cả text trong phần bottom của các trang, từ `CHAPTER N.` cho đến (không gồm) `CHAPTER N+1.`, đều thuộc commentary của Chapter N — lấy **nguyên văn đầy đủ**, không bỏ bất kỳ footnote nào.
+
+#### Tại sao lỗi này xảy ra
+
+Bố cục trang Cassell's 1860: phần bottom (commentary) của một trang không nhất thiết kết thúc cùng chương với Bible text phần trên. Commentary CHAPTER N thường **tràn sang 1–3 trang tiếp theo**, xen kẽ dưới Bible text của CHAPTER N+1, N+2...
+
 ```
 Trang 1:                      Trang 2:                    Trang 3:
 [Bible text Ch. I v.1–18]     [Bible text Ch. I v.19–25] [Bible text Ch. II v.1–14]
@@ -192,40 +148,49 @@ CHAPTER I.          ← bắt đầu  [không có heading]          [không có 
 2. Ekron was...                 5—8. The messengers...      13—16. The third captain...
                                                             17. As Ahaziah...   ← kết thúc Ch.I
                                                             CHAPTER II.         ← bắt đầu Ch.II
+                                                            1. Gilgal is...
 ```
 
 #### Cách làm đúng
 
-1. Khi gặp `CHAPTER N.` trong phần bottom: bắt đầu thu thập, đọc hết trang đó.
-2. Sang trang tiếp: nếu **không có** `CHAPTER N+1.` → vẫn thuộc Chapter N, tiếp tục thu thập.
-3. Lặp lại cho đến khi thấy `CHAPTER N+1.`.
-4. Ghi tất cả `com()` theo đúng thứ tự, nguyên văn đầy đủ.
+**Bước 1 — Khi gặp `CHAPTER N.` trong phần bottom:** bắt đầu thu thập commentary, tiếp tục đọc hết trang đó.
+
+**Bước 2 — Sang trang tiếp theo:** đọc phần bottom. Nếu **không có** heading `CHAPTER N+1.` → toàn bộ nội dung phần bottom vẫn thuộc Chapter N, tiếp tục thu thập.
+
+**Bước 3 — Lặp lại Bước 2** cho mỗi trang tiếp theo cho đến khi thấy `CHAPTER N+1.` trong phần bottom.
+
+**Bước 4 — Ghi vào code** tất cả các `com()` theo đúng thứ tự, nguyên văn đầy đủ.
 
 ```javascript
-// ✅ ĐÚNG — gom đủ từ trang 1 đến trang 3
+// ✅ ĐÚNG — gom đủ tất cả footnotes từ mọi trang cho đến khi gặp CHAPTER II.
 C.push(ch('CHAPTER I.'));
-C.push(com('1.', 'The previous Book concluded...'));       // trang 1
-C.push(com('2.', 'Ekron was the most northern...'));       // trang 1
-C.push(com('3, 4.', 'Ahaziah sends to consult...'));       // trang 2
-C.push(com('5—8.', 'The messengers did not recognise...')); // trang 2
-C.push(com('9—12.', 'After Elijah had revealed...'));      // trang 3
-C.push(com('13—16.', 'The third captain takes...'));       // trang 3
-C.push(com('17.', 'As Ahaziah had no son...'));            // trang 3
+C.push(com('1.', 'The previous Book concluded with the intimation that Ahaziah...'));  // trang 1
+C.push(com('2.', 'Ekron was the most northern of the five cities...'));                // trang 1
+C.push(com('3, 4.', 'Ahaziah sends to consult this deity as to...'));                  // trang 2
+C.push(com('5—8.', 'The messengers did not recognise Elijah; but when...'));           // trang 2
+C.push(com('9—12.', 'After Elijah had revealed to the messengers...'));                // trang 3
+C.push(com('13—16.', 'The third captain takes quite a different attitude...'));        // trang 3
+C.push(com('17.', 'As Ahaziah had no son, he was succeeded by Jehoram...'));           // trang 3
 
-// ❌ SAI — dừng sớm sau trang 1, bỏ mất footnotes 3,4 đến 17
+// ❌ SAI — dừng sớm sau trang 1, bỏ mất toàn bộ footnotes 3,4 đến 17
+C.push(ch('CHAPTER I.'));
+C.push(com('1.', 'The previous Book...'));
+C.push(com('2.', 'Ekron was...'));
+// ← THIẾU: 3,4 / 5—8 / 9—12 / 13—16 / 17
 ```
 
 #### Checklist trước khi code một chương
 
 - [ ] Đã đọc phần bottom tất cả trang từ khi gặp `CHAPTER N.` đến khi gặp `CHAPTER N+1.`?
-- [ ] Số lượng `com()` trong code có khớp với số footnote đếm được không?
+- [ ] Số lượng `com()` trong code có khớp với số footnote đếm được trong ảnh không?
 - [ ] Không có footnote nào bị bỏ qua giữa chừng không?
 
 ---
 
 ## Bước 3 — Build DOCX bằng JavaScript
 
-Chỉ sau khi đã đọc xong nguồn của một chương mới được viết code cho chương đó.
+Vì file thường lớn (20+ chương), **chia script thành nhiều file** rồi `require()` nối nhau.
+Mỗi file tối đa ~80,000 bytes để tránh giới hạn bash.
 
 ### Helper functions chuẩn
 
@@ -236,7 +201,7 @@ const {Document, Packer, Paragraph, TextRun, AlignmentType,
 const fs = require('fs');
 const F = 'Georgia';
 
-// Đường kẻ ngang phân cách chương
+// Đường kẻ ngang phân cách
 const hRule = () => new Paragraph({
   spacing: {before: 200, after: 200},
   border: {bottom: {style: BorderStyle.SINGLE, size: 4, color: '999999'}},
@@ -255,7 +220,7 @@ const runHdr = (l, c, r) => new Paragraph({
 });
 
 // Chapter heading + summary
-// ⚠️  summary phải giữ nguyên số "1" ở đầu dòng (xem LỖI #1)
+// ⚠️  summary phải giữ nguyên số "1" ở đầu dòng (xem mục LỖI HAY GẶP #1)
 const chHead = (num, summary) => [
   new Paragraph({
     alignment: AlignmentType.CENTER,
@@ -269,7 +234,7 @@ const chHead = (num, summary) => [
   })
 ];
 
-// Verse thông thường — text = NGUYÊN VĂN
+// Verse thông thường
 const v = (num, text, ital) => new Paragraph({
   alignment: AlignmentType.JUSTIFIED,
   spacing: {before: 80, after: 80},
@@ -281,7 +246,6 @@ const v = (num, text, ital) => new Paragraph({
 });
 
 // Verse với chữ in nghiêng xen kẽ: vmi(num, normal, italic, normal, italic, ...)
-// Dùng cho verse 1 có drop cap hoặc chữ cái trang trí
 const vmi = (num, ...parts) => {
   const runs = [new TextRun({text: `${num} `, bold: true, size: 22, font: F})];
   for (let i = 0; i < parts.length; i++)
@@ -294,8 +258,8 @@ const vmi = (num, ...parts) => {
   });
 };
 
-// Commentary có số tham chiếu — ref và text = NGUYÊN VĂN
-// ⚠️  Nếu có đoạn plain trước com() đầu tiên, dùng cp() (xem LỖI #2)
+// Commentary có số tham chiếu
+// ⚠️  Nếu có đoạn không có số trước com() đầu tiên, dùng cp() (xem mục LỖI HAY GẶP #2)
 const com = (ref, text) => new Paragraph({
   alignment: AlignmentType.JUSTIFIED,
   spacing: {before: 60, after: 60},
@@ -306,7 +270,7 @@ const com = (ref, text) => new Paragraph({
   ]
 });
 
-// Commentary đoạn văn thông thường (không có số tham chiếu) — text = NGUYÊN VĂN
+// Commentary đoạn văn thông thường (không có số tham chiếu)
 const cp = t => new Paragraph({
   alignment: AlignmentType.JUSTIFIED,
   spacing: {before: 80, after: 80},
@@ -331,13 +295,10 @@ const cap = t => new Paragraph({
 
 ### Cấu trúc multi-file
 
-Vì file thường lớn (20+ chương), **chia script thành nhiều file** rồi `require()` nối nhau.
-Mỗi file tối đa ~80,000 bytes để tránh giới hạn bash.
-
 ```
-book_p1.js  ← helpers + C[] + chapters I–VIII    → exports {C, helpers...}
-book_p2.js  ← require('./book_p1') + IX–XVI      → exports base
-book_p3.js  ← require('./book_p2') + XVII–XXV + BUILD
+iiking_p1.js  ← helpers + C[] + chapters I–IX  → exports {C, helpers...}
+iiking_p2.js  ← require('./iiking_p1') + chapters X–XVII → exports base
+iiking_p3.js  ← require('./iiking_p2') + chapters XVIII–XXV + BUILD DOC
 ```
 
 **File cuối (p3.js) — phần build:**
@@ -376,8 +337,9 @@ Packer.toBuffer(doc).then(buf => {
 ### Chạy và validate
 
 ```bash
-node /home/claude/book_p3.js
+node /home/claude/iiking_p3.js
 
+# Validate kết quả
 python3 /mnt/skills/public/docx/scripts/office/validate.py \
   /mnt/user-data/outputs/Cassells_1860_BOOKNAME_full.docx
 ```
@@ -386,16 +348,15 @@ python3 /mnt/skills/public/docx/scripts/office/validate.py \
 
 ## Quy tắc quan trọng
 
-1. **Đọc tất cả nguồn** (ảnh hoặc txt) trước khi build — không đoán nội dung
+1. **Đọc tất cả trang ảnh** trước khi build — không đoán nội dung
 2. **Script tối đa ~80,000 bytes** — nếu lớn hơn, chia nhỏ thêm file
-3. **Proper names KHÔNG dịch** — Solomon, Elijah, Samaria...
-4. **Verse 1 dùng `vmi()`** — OCR thường tách drop cap thành ký tự đơn
-5. **Verse numbers in bold** — dùng `v(num, text)` không phải plain text
-6. **Bỏ footnote refs cột giữa** — `a`, `b`, `1 Heb.`, `Or,`
-7. **Summary bắt đầu bằng "1 ..."** — giữ nguyên số "1" trong `chHead()` (xem LỖI #1)
-8. **`cp()` trước `com()` đầu tiên** nếu có đoạn plain text không đánh số (xem LỖI #2)
-9. **Commentary tràn trang** — đọc tiếp cho đến khi gặp `CHAPTER N+1.` (xem LỖI #3)
-10. **Validate PASSED** trước khi `present_files`
+3. **Proper names KHÔNG dịch** — giữ nguyên tiếng Anh (Solomon, Elijah, Samaria...)
+4. **Verse numbers in bold** — dùng `v(num, text)` không phải plain text
+5. **Bỏ footnote refs** — các ký hiệu như `a`, `b`, `1 Heb.`, `Or,` trong cột giữa
+6. **vmi()** cho câu mở đầu chapter có chữ cái trang trí to (drop cap)
+7. **Validate PASSED** trước khi present_files
+8. **Summary bắt đầu bằng "1 ..."** — giữ nguyên số "1" trong `chHead()` (xem LỖI #1)
+9. **cp() trước com() đầu tiên** nếu có đoạn plain text không đánh số (xem LỖI #2)
 
 ---
 
@@ -409,7 +370,7 @@ TITLE PAGE
   hRule
 
 CHAPTER I
-  runHdr(left, center, right)           ← từ running header trang ảnh/OCR
+  runHdr(left, center, right)           ← từ running header trang ảnh
   chHead(I, "1 Summary line. 5 ...")    ← ⚠️ giữ số "1" đầu dòng
   cap("IMAGE CAPTION")                  ← nếu có hình
   vmi(1, "Opening drop-cap text...")    ← verse 1 với chữ to
@@ -429,10 +390,10 @@ CHAPTER II
 
 ## Ví dụ thực tế đã làm
 
-| File | Phương pháp | Chương | Paragraphs | Output |
-|------|-------------|--------|-----------|--------|
-| I Kings (Vol.2) | OCR txt | 22 | 562 | `Cassells_1860_I_KINGS_full.docx` |
-| II Kings (Vol.2) | OCR txt | 25 | 499 | `Cassells_1860_II_KINGS_full.docx` |
+| File | Chương | Paragraphs | Output |
+|------|--------|-----------|--------|
+| I Kings (Vol.2) | 22 | 1,046 | `Cassells_1860_I_KINGS_full.docx` |
+| II Kings (Vol.2) | 25 | 946 | `Cassells_1860_II_KINGS_full.docx` |
 
 ---
 
@@ -442,10 +403,7 @@ CHAPTER II
 |-----|-------------|-----------|
 | `Command argument exceeds 100,000 bytes` | Script quá lớn trong bash | Dùng `create_file` rồi `node file.js` |
 | `unbalanced parenthesis` regex | Ký tự đặc biệt trong pattern | Escape hoặc tách regex |
-| Summary thiếu số | Không đọc nguồn, tự viết lại | Đọc lại, copy nguyên văn, giữ số "1" |
-| Commentary sai hoàn toàn | Tự tóm tắt thay vì đọc nguồn | Đọc lại từ ảnh/txt, copy nguyên văn |
-| Commentary thiếu đoạn cuối | Dừng sớm, không đọc hết trang | Xem LỖI #3, đọc đến khi gặp CHAPTER N+1 |
-| Commentary thiếu đoạn mở đầu | Bỏ text plain trước footnotes | Xem LỖI #2, thêm `cp()` |
-| Verse bị thiếu/sai | Dùng trí nhớ | Đọc lại nguồn, copy từng câu |
-| Text bị lẫn footnotes | OCR trộn cột giữa vào | Lọc các dòng dạng `a Tên.sách.` và `1 Heb.` |
-| `Paragraphs: 0` khi validate | Chưa copy file vào outputs | Kiểm tra đường dẫn `writeFileSync` |
+| `Paragraphs: 0` khi validate | Chưa copy file vào outputs | Kiểm tra đường dẫn output |
+| Text bị lẫn footnotes | pdftotext trộn 2 cột | Đọc từ ảnh, không dùng text thô |
+| Summary thiếu số đầu dòng | Quên giữ "1" trong chHead() | Xem mục LỖI HAY GẶP #1 |
+| Commentary thiếu đoạn mở đầu | Bỏ text plain trước footnotes | Xem mục LỖI HAY GẶP #2 |
