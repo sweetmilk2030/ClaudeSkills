@@ -447,8 +447,6 @@ CHAPTER II
 |------|-------------|--------|-----------|--------|
 | I Kings (Vol.2) | OCR txt | 22 | 562 | `Cassells_1860_I_KINGS_full.docx` |
 | II Kings (Vol.2) | OCR txt | 25 | 499 | `Cassells_1860_II_KINGS_full.docx` |
-| I Kings (Vol.2) | Visual ảnh | 22 | 1,046 | `Cassells_1860_I_KINGS_full.docx` |
-| II Kings (Vol.2) | Visual ảnh | 25 | 946 | `Cassells_1860_II_KINGS_full.docx` |
 
 ---
 
